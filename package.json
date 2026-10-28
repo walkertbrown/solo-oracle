@@ -1,6 +1,6 @@
 {
 	"name": "solo-oracle",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Solo Oracle, a yes/no oracle, scenes, threads and random tables for solo play in Obsidian notes.",
 	"main": "main.js",
 	"type": "module",

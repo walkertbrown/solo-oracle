@@ -131,8 +131,8 @@
 	align-items: center;
 	margin-bottom: 4px;
 }
-.solo-oracle-pick {
-	font-size: 12px !important;
+.solo-oracle button.solo-oracle-pick {
+	font-size: 12px;
 	padding: 2px 8px;
 }
 .solo-oracle-list ul {
@@ -147,14 +147,12 @@
 	gap: 6px;
 	padding: 2px 0;
 }
-.solo-oracle-remove {
-	background: none !important;
-	box-shadow: none !important;
-	border: none !important;
+/* clickable-icon keeps Obsidian's button background, border and shadow off these */
+.solo-oracle .solo-oracle-remove {
 	color: var(--text-faint);
 	padding: 0 4px;
 }
-.solo-oracle-remove:hover {
+.solo-oracle .solo-oracle-remove:hover {
 	color: var(--text-error);
 }
 .solo-oracle-table-row {

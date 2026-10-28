@@ -231,7 +231,7 @@ class Panel extends MarkdownRenderChild {
 				this.say({ big: r.text, small: r.roll !== undefined ? `${link.label}, rolled ${r.roll}` : link.label });
 				void this.write(null, journalTable(link, r));
 			};
-			const x = chip.createEl('button', { text: '×', cls: 'solo-oracle-remove' });
+			const x = chip.createEl('button', { text: '×', cls: 'solo-oracle-remove clickable-icon' });
 			x.setAttr('aria-label', `Remove ${line}`);
 			x.onclick = () => void this.write((body) => removeEntry(body, 'table', i));
 		});
@@ -261,7 +261,7 @@ class Panel extends MarkdownRenderChild {
 		items.forEach((it, i) => {
 			const li = ul.createEl('li');
 			li.createSpan({ text: it });
-			const x = li.createEl('button', { text: '×', cls: 'solo-oracle-remove' });
+			const x = li.createEl('button', { text: '×', cls: 'solo-oracle-remove clickable-icon' });
 			x.setAttr('aria-label', `Remove ${it}`);
 			x.onclick = () => void this.write((b) => removeEntry(b, kind, i));
 		});
