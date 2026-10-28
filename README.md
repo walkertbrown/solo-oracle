@@ -26,6 +26,7 @@ In reading view or live preview the block becomes a panel. The block keeps the s
 | `scene 3: The far shore` | the scene you are in |
 | `thread: Find my brother` | something you want to happen or find out |
 | `npc: Old Marra` | someone you have met |
+| `table: [[Tables#Weather]]` | one of your own tables, with a button to roll on it |
 
 Any other line is left alone, so you can keep notes to yourself in the block.
 
@@ -53,6 +54,31 @@ When it ends, press **Went my way** (tension down one) or **Went against me** (u
 
 Add them in the boxes under the panel, remove them with ×, and press **Pick one** to roll a random one. Twists pick from these lists too.
 
+## Your own tables
+
+Add a `table:` line with a link to a note, or to a heading in one, and the panel gets a button that rolls on it. Type `Tables#Weather` in the box under the panel, or write the line yourself. `[[Tables#Weather|Sky]]` names the button Sky.
+
+What is under the link decides how it rolls:
+
+| Under the link | A roll gives |
+| --- | --- |
+| a table whose first column is numbers or ranges (`1-2`, `3`, `4-6`) | the dice in that column's header (`d6`, `2d6`, `d20`) are rolled, or 1 to the highest number, and the matching row comes back with the roll |
+| any other table | one row |
+| a list | one item |
+| anything else | one line |
+
+```
+## Weather
+
+| d6 | Sky over the harbour |
+| --- | --- |
+| 1-2 | Still and grey |
+| 3-4 | Fog off the water |
+| 5-6 | A storm coming in |
+```
+
+A heading's part of the note runs to the next heading as high as it. The links sit inside a code block, so Obsidian doesn't update them when you rename a note; fix the line by hand if you do.
+
 ## The journal
 
 Everything you roll goes at the end of the note as plain Markdown:
@@ -60,6 +86,7 @@ Everything you roll goes at the end of the note as plain Markdown:
 ```
 - **?** Is anyone at the dock? *(likely)* → **Yes, but**
 	- **Twist:** Someone you know acts: Old Marra (betray · a promise)
+- **Weather** *(3)*: Fog off the water
 
 ### Scene 2: Marra rows me to the church
 
@@ -74,7 +101,7 @@ The odds, twist focuses and word lists were written for this plugin. None of the
 
 ## Privacy
 
-Solo Oracle does not use the network, has no accounts, collects nothing and sends nothing. It only edits the `solo` block it is drawing and adds lines to the end of that note.
+Solo Oracle does not use the network, has no accounts, collects nothing and sends nothing. It only edits the `solo` block it is drawing and adds lines to the end of that note. It reads the notes your `table:` lines link to and never changes them.
 
 ## Install
 

@@ -20,6 +20,7 @@ import {
 	type Rng,
 	type Solo,
 } from './oracle';
+import { journalTable, parseTableLink, rollOn, section, type TableLink, type TableRoll } from './tables';
 
 const TEMPLATE = '```solo\ntension 2\nthread: \nnpc: \n```\n';
 const OPEN = /^((?:\s*>)*\s*)(`{3,}|~{3,})\s*solo\b/;
@@ -78,6 +79,15 @@ export default class SoloOraclePlugin extends Plugin {
 			return out;
 		});
 		return ok;
+	}
+
+	/** One roll on the table a `table:` line links to, or why it can't be rolled. */
+	async rollTable(link: TableLink, sourcePath: string): Promise<TableRoll | { error: string }> {
+		const file = this.app.metadataCache.getFirstLinkpathDest(link.path, sourcePath);
+		if (!(file instanceof TFile)) return { error: `No note "${link.path}"` };
+		const text = section(await this.app.vault.cachedRead(file), link.heading);
+		if (text === null) return { error: `No heading "${link.heading}" in "${link.path}"` };
+		return rollOn(text, () => this.rng()) ?? { error: `Nothing to roll on in "${link.label}"` };
 	}
 }
 
@@ -197,6 +207,43 @@ class Panel extends MarkdownRenderChild {
 		const lists = el.createDiv({ cls: 'solo-oracle-lists' });
 		this.list(lists, 'thread', 'Threads', solo.threads);
 		this.list(lists, 'npc', 'People', solo.npcs);
+		this.tables(el, solo.tables);
+	}
+
+	private tables(parent: HTMLElement, lines: string[]) {
+		const box = parent.createDiv({ cls: 'solo-oracle-tables' });
+		box.createDiv({ cls: 'solo-oracle-label', text: 'Tables' });
+		const row = box.createDiv({ cls: 'solo-oracle-table-row' });
+		lines.forEach((line, i) => {
+			const link = parseTableLink(line);
+			const chip = row.createSpan({ cls: 'solo-oracle-table' });
+			const b = chip.createEl('button', { text: link?.label ?? line });
+			b.setAttr('title', `Roll on ${line}`);
+			b.disabled = !link;
+			b.onclick = async () => {
+				if (!link) return;
+				const r = await this.plugin.rollTable(link, this.ctx.sourcePath);
+				if ('error' in r) {
+					this.say({ big: 'Can\'t roll', small: r.error });
+					this.draw();
+					return;
+				}
+				this.say({ big: r.text, small: r.roll !== undefined ? `${link.label}, rolled ${r.roll}` : link.label });
+				void this.write(null, journalTable(link, r));
+			};
+			const x = chip.createEl('button', { text: '×', cls: 'solo-oracle-remove' });
+			x.setAttr('aria-label', `Remove ${line}`);
+			x.onclick = () => void this.write((body) => removeEntry(body, 'table', i));
+		});
+		const add = box.createEl('input', { type: 'text', cls: 'solo-oracle-add-table', placeholder: 'Add a table: a note, or Note#Heading' });
+		add.setAttr('aria-label', 'Add a table');
+		add.addEventListener('keydown', (e) => {
+			const link = parseTableLink(add.value);
+			if (e.key !== 'Enter' || !link) return;
+			const text = /^\s*\[\[/.test(add.value) ? add.value.trim() : `[[${add.value.trim()}]]`;
+			add.value = '';
+			void this.write((body) => addEntry(body, 'table', text));
+		});
 	}
 
 	private list(parent: HTMLElement, kind: ListKind, title: string, items: string[]) {

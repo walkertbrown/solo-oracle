@@ -5,6 +5,7 @@
 //   scene 3: The ferry at dusk    the scene being played
 //   thread: Find my brother       something the story is about
 //   npc: Old Marra                someone in it
+//   table: [[Weather#Coast]]      one of your own tables to roll on (tables.ts)
 
 export const TENSION_MIN = 0;
 export const TENSION_MAX = 6;
@@ -19,21 +20,25 @@ export interface Solo {
 	scene?: { n: number; title: string };
 	threads: string[];
 	npcs: string[];
+	tables: string[];
 }
 
-export type ListKind = 'thread' | 'npc';
+export type ListKind = 'thread' | 'npc' | 'table';
 
 const TENSION = /^\s*tension\s*:?\s*(-?\d+)\s*$/i;
 const SCENE = /^\s*scene\s+(\d+)\s*:?\s*(.*)$/i;
-const ENTRY = /^\s*(thread|npc)\s*:\s*(.+?)\s*$/i;
+const ENTRY = /^\s*(thread|npc|table)\s*:\s*(.+?)\s*$/i;
 
 export function parseSolo(body: string): Solo {
-	const s: Solo = { tension: TENSION_START, threads: [], npcs: [] };
+	const s: Solo = { tension: TENSION_START, threads: [], npcs: [], tables: [] };
 	for (const line of body.split('\n')) {
 		let m: RegExpExecArray | null;
 		if ((m = TENSION.exec(line))) s.tension = clampTension(Number(m[1]));
 		else if ((m = SCENE.exec(line))) s.scene = { n: Number(m[1]), title: m[2]!.trim() };
-		else if ((m = ENTRY.exec(line))) (m[1]!.toLowerCase() === 'thread' ? s.threads : s.npcs).push(m[2]!);
+		else if ((m = ENTRY.exec(line))) {
+			const kind = m[1]!.toLowerCase();
+			(kind === 'thread' ? s.threads : kind === 'npc' ? s.npcs : s.tables).push(m[2]!);
+		}
 	}
 	return s;
 }

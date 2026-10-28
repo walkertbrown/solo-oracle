@@ -157,3 +157,16 @@
 .solo-oracle-remove:hover {
 	color: var(--text-error);
 }
+.solo-oracle-table-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 4px 0 6px;
+}
+.solo-oracle-table-row:empty {
+	display: none;
+}
+.solo-oracle-table {
+	display: inline-flex;
+	align-items: center;
+}

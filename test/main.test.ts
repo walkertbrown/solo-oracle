@@ -120,3 +120,35 @@ describe('appending to the note', () => {
 		expect(append('', '- a')).toBe('- a\n');
 	});
 });
+
+describe('tables', () => {
+	const WITH = NOTE.replace('npc: Old Marra\n', 'npc: Old Marra\ntable: [[Weather#Coast]]\ntable: [[Nowhere]]\n');
+	const WEATHER = '# Weather\n\n## Coast\n\n| d6 | Sky |\n|---|---|\n| 1-3 | Clear |\n| 4-6 | Fog rolls in |\n';
+
+	it('rolls on a linked table and writes the result', async () => {
+		const s = await setup(WITH);
+		s.app.notes.set('Weather.md', { path: 'Weather.md', content: WEATHER });
+		s.plugin.rng = seq((5 - 0.5) / 6);
+		s.button('Coast').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toMatch(/- \*\*Coast\*\* \*\(5\)\*: Fog rolls in\n$/);
+		expect(s.el.querySelector('.solo-oracle-big')!.textContent).toBe('Fog rolls in');
+	});
+
+	it('says why a table cannot be rolled, without writing', async () => {
+		const s = await setup(WITH);
+		s.button('Nowhere').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.el.querySelector('.solo-oracle-small')!.textContent).toBe('No note "Nowhere"');
+		expect(s.content()).toBe(WITH);
+	});
+
+	it('adds a table as a link, keeping one typed with brackets as it is', async () => {
+		const s = await setup(NOTE);
+		await s.type('.solo-oracle-add-table', 'Weather#Inland');
+		expect(s.content()).toContain('npc: Old Marra\ntable: [[Weather#Inland]]\n```');
+		await s.type('.solo-oracle-add-table', '[[Names|Who]]');
+		expect(s.content()).toContain('table: [[Weather#Inland]]\ntable: [[Names|Who]]\n```');
+		expect(s.button('Who')).toBeDefined();
+	});
+});

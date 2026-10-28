@@ -15,9 +15,32 @@ thread: Find my brother
 thread: Who rings the bell?
 npc: Old Marra, the ferrywoman
 npc: Father Aldous
+table: [[Tables#Weather]]
+table: [[Tables#On the dock]]
 \`\`\`
 
 I step off the ferry at dusk.`;
+
+// a second note the block's table: lines point at
+const TABLES = `# Tables
+
+## Weather
+
+| d6 | Sky over the harbour |
+| --- | --- |
+| 1-2 | Still and grey |
+| 3-4 | Fog off the water |
+| 5 | Rain that tastes of salt |
+| 6 | A storm coming in |
+
+## On the dock
+
+- A boy mending nets, who won't look up
+- Two fishermen arguing about a debt
+- A woman in mourning, watching the water
+- Nobody, and a lantern left burning
+- A priest's servant, in a hurry
+`;
 
 type Ctx = { sourcePath: string; addChild: () => void; getSectionInfo: () => { text: string; lineStart: number; lineEnd: number } };
 type Proc = (src: string, el: HTMLElement, c: Ctx) => void;
@@ -25,6 +48,7 @@ type Proc = (src: string, el: HTMLElement, c: Ctx) => void;
 async function main() {
 	const app = new App();
 	app.notes.set('Run.md', { path: 'Run.md', content: START });
+	app.notes.set('Tables.md', { path: 'Tables.md', content: TABLES });
 	const plugin = new SoloOraclePlugin(app as never, { id: 'solo-oracle' } as never);
 	await plugin.onload();
 	const proc = (plugin as never as { codeBlocks: Record<string, Proc> }).codeBlocks.solo!;

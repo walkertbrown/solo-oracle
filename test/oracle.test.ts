@@ -32,6 +32,7 @@ describe('reading a solo block', () => {
 			scene: { n: 2, title: 'The ferry' },
 			threads: ['Find my brother'],
 			npcs: ['Old Marra', 'The Grey Captain'],
+			tables: [],
 		});
 	});
 
@@ -69,7 +70,7 @@ describe('changing a solo block', () => {
 });
 
 describe('the oracle', () => {
-	const solo: Solo = { tension: 3, threads: ['Find my brother'], npcs: ['Old Marra'] };
+	const solo: Solo = { tension: 3, threads: ['Find my brother'], npcs: ['Old Marra'], tables: [] };
 
 	it('says yes at or under the odds and no over them', () => {
 		expect(ask('Q', 'even', solo, seq(face(50, 100), face(10, 10))).yes).toBe(true);
@@ -102,8 +103,8 @@ describe('the oracle', () => {
 		const t = twist(solo, seq(1.5 / 12, 0, 0, 0));
 		expect(t).toMatchObject({ focus: 'Someone you know acts', who: 'Old Marra' });
 		expect(t.words).toHaveLength(2);
-		expect(twist({ tension: 2, threads: [], npcs: [] }, seq(1.5 / 12, 0, 0))).toEqual({ focus: 'Someone new steps in', words: ['abandon', 'an ally'] });
-		expect(twist({ tension: 2, threads: [], npcs: [] }, seq(4.5 / 12, 0, 0)).focus).toBe('A new thread begins');
+		expect(twist({ tension: 2, threads: [], npcs: [], tables: [] }, seq(1.5 / 12, 0, 0))).toEqual({ focus: 'Someone new steps in', words: ['abandon', 'an ally'] });
+		expect(twist({ tension: 2, threads: [], npcs: [], tables: [] }, seq(4.5 / 12, 0, 0)).focus).toBe('A new thread begins');
 	});
 
 	it('writes an answer as a journal line', () => {
@@ -113,7 +114,7 @@ describe('the oracle', () => {
 });
 
 describe('scenes', () => {
-	const solo: Solo = { tension: 3, scene: { n: 2, title: 'x' }, threads: [], npcs: ['Ash'] };
+	const solo: Solo = { tension: 3, scene: { n: 2, title: 'x' }, threads: [], npcs: ['Ash'], tables: [] };
 
 	it('numbers the next scene and keeps it as expected over the tension', () => {
 		const s = startScene(' The far shore ', solo, seq(face(7, 10)));
