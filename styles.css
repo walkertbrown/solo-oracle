@@ -1,0 +1,159 @@
+.solo-oracle {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m, 8px);
+	padding: 12px 14px;
+	background: var(--background-secondary);
+	font-family: var(--font-interface);
+	font-size: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.solo-oracle button {
+	font: inherit;
+	cursor: pointer;
+}
+.solo-oracle input[type='text'] {
+	font: inherit;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 6px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+.solo-oracle-head {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+}
+.solo-oracle-scene {
+	font-weight: 600;
+}
+.solo-oracle-label {
+	color: var(--text-muted);
+	font-size: 12px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.solo-oracle-tension {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.solo-oracle-step {
+	width: 28px;
+	padding: 2px 0;
+}
+.solo-oracle-pips {
+	display: inline-flex;
+	gap: 3px;
+}
+.solo-oracle-pip {
+	width: 10px;
+	height: 16px;
+	border-radius: 3px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+.solo-oracle-pip.is-on {
+	background: var(--color-orange, #e9973f);
+	border-color: transparent;
+}
+.solo-oracle-pip.is-on:nth-child(n + 5) {
+	background: var(--color-red, #fb464c);
+}
+.solo-oracle-odds {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.solo-oracle-odds button {
+	flex: 1 1 auto;
+}
+.solo-oracle-said:empty {
+	display: none;
+}
+.solo-oracle-said {
+	text-align: center;
+	padding: 6px 0 2px;
+}
+.solo-oracle-big {
+	font-size: 1.6em;
+	font-weight: 700;
+	line-height: 1.2;
+	animation: solo-oracle-in 260ms ease-out;
+}
+.solo-oracle-big.is-yes {
+	color: var(--color-green, #44cf6e);
+}
+.solo-oracle-big.is-no {
+	color: var(--color-red, #fb464c);
+}
+.solo-oracle-small {
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+@keyframes solo-oracle-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px) scale(0.96);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.solo-oracle-big {
+		animation: none;
+	}
+}
+.solo-oracle-more,
+.solo-oracle-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.solo-oracle-row input[type='text'] {
+	flex: 1;
+}
+.solo-oracle-end {
+	flex-wrap: wrap;
+}
+.solo-oracle-lists {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 10px;
+}
+.solo-oracle-list-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 4px;
+}
+.solo-oracle-pick {
+	font-size: 12px !important;
+	padding: 2px 8px;
+}
+.solo-oracle-list ul {
+	list-style: none;
+	margin: 0 0 6px;
+	padding: 0;
+}
+.solo-oracle-list li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 0;
+}
+.solo-oracle-remove {
+	background: none !important;
+	box-shadow: none !important;
+	border: none !important;
+	color: var(--text-faint);
+	padding: 0 4px;
+}
+.solo-oracle-remove:hover {
+	color: var(--text-error);
+}
