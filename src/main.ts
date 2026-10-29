@@ -40,6 +40,7 @@ interface Said {
 }
 
 export const SERVER = 'https://bulkhead.bananafest-destiny.com';
+export const BUY = 'https://bananafestdestiny.itch.io/solo-oracle-pro'; // where Pro is sold; the key check asks the server, not this
 
 interface Settings {
 	folder: string; // where the library looks for tables; "" is the whole vault
@@ -248,6 +249,7 @@ class SoloOracleSettingTab extends PluginSettingTab {
 				name: 'Pro key',
 				desc: 'The address of your itch download page for Solo Oracle Pro, or the key at the end of it. Check asks this plugin\'s server once, and Pro stays on after that, offline too. It is kept in this vault\'s plugin folder.',
 				render: (setting) => {
+					if (!p.pro) setting.descEl.createDiv().createEl('a', { text: 'Get Solo Oracle Pro on itch', href: BUY });
 					const said = setting.descEl.createDiv({ cls: 'solo-oracle-said' });
 					setting
 						.addText((t) => t.setPlaceholder('Download page address or key').setValue(p.settings.key).onChange(async (v) => {
@@ -542,6 +544,7 @@ class Library extends ItemView {
 		if (!this.plugin.pro) {
 			el.createDiv({ cls: 'solo-oracle-label', text: 'Table library' });
 			el.createEl('p', { text: 'The table library comes with Solo Oracle Pro: every table in a folder, to search and roll without adding it to a game first. A Pro key goes in Solo Oracle\'s settings.' });
+			el.createEl('a', { text: 'Get Solo Oracle Pro on itch', href: BUY });
 			return;
 		}
 		const where = el.createDiv({ cls: 'solo-oracle-row' });

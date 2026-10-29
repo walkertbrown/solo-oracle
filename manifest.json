@@ -1,7 +1,7 @@
 {
 	"id": "solo-oracle",
 	"name": "Solo Oracle",
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"minAppVersion": "1.13.0",
 	"description": "A solo TTRPG oracle and GM emulator in your notes: yes or no at the odds you pick, scenes, threads, NPCs and your own random tables. Every roll writes itself into the note as your journal.",
 	"author": "Bananafest Destiny",

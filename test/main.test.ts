@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeAll, describe, expect, it } from 'vitest';
 import { App, Modal, Notice, ctx, installDomHelpers, requestUrl } from './obsidian-shim';
-import SoloOraclePlugin, { SERVER, append } from '../src/main';
+import SoloOraclePlugin, { BUY, SERVER, append } from '../src/main';
 
 beforeAll(() => installDomHelpers());
 
@@ -298,6 +298,7 @@ describe('the table library', () => {
 	it('says it comes with Pro', async () => {
 		const { lib } = await library(false);
 		expect(lib.textContent).toContain('comes with Solo Oracle Pro');
+		expect(lib.querySelector('a')?.getAttribute('href')).toBe(BUY);
 		expect(lib.querySelector('.solo-oracle-search')).toBeNull();
 	});
 });

@@ -108,9 +108,20 @@ Write your own lines between them. The panel only ever adds to the end of the no
 
 The odds, twist focuses, word lists and starter tables were written for this plugin. None of them come from a published oracle, so the plugin works with any solo game and any setting.
 
+## Pro
+
+Everything above is free. Solo Oracle Pro is a one-time payment of $6 on itch (https://bananafestdestiny.itch.io/solo-oracle-pro), and it adds:
+
+- **A table library.** Run "Open table library" for a side pane with every table in a folder (Tables, or one you pick, or the whole vault). Search by name or by what's in them, roll with a click, and press + to add one to the game you're playing.
+- **Importing.** Run "Import a table" and paste or open a text or CSV file. Numbered lines like `2-6 Rust` become a dice table, columns become a table, and anything else becomes a list. It's saved as a note in the library folder.
+- **Tables inside tables.** A result can name another table, like `{{Names}}` or `{{Coast#Weather}}`, and that one rolls too, up to five deep. Without Pro the name is left as written.
+- **Export a game as a story.** Run "Export this game as a story" on a game note. You get a copy beside it without the panel, with each roll as one short line or left out. The game note isn't changed.
+
+After you buy, copy your download page's address. Paste it into Solo Oracle's settings under **Pro key** and press **Check**. Pro stays on in that vault from then on. Lost it? Type the email you bought with under **Lost your key?**.
+
 ## Privacy
 
-Solo Oracle does not use the network, has no accounts, collects nothing and sends nothing. It only edits the `solo` block it is drawing and adds lines to the end of that note. It reads the notes your `table:` lines link to and never changes them.
+Solo Oracle has no accounts and collects nothing. It goes online only when you press **Check** or **Mail my key** in its settings. Check sends the Pro key you pasted to this plugin's server (bulkhead.bananafest-destiny.com), which asks itch whether the key is real; the server keeps a hash of a good key, never the key. Mail my key sends the email you typed to the same server, which asks itch for that address's key and mails it there; it keeps only a hash of the address, so it mails no more than once an hour. Nothing else ever leaves your vault. It only edits the `solo` block it is drawing and adds lines to the end of that note. It reads the notes your `table:` lines link to and never changes them. Importing and exporting write new notes and never change existing ones.
 
 ## Install
 
