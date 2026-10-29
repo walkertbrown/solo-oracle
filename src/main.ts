@@ -20,10 +20,11 @@ import {
 	type Rng,
 	type Solo,
 } from './oracle';
-import { journalTable, parseTableLink, rollOn, section, type TableLink, type TableRoll } from './tables';
+import { expand, hasInnerTable, journalTable, parseTableLink, rollOn, section, type TableLink, type TableRoll } from './tables';
 
 const TEMPLATE = '```solo\ntension 2\nthread: \nnpc: \n```\n';
 const OPEN = /^((?:\s*>)*\s*)(`{3,}|~{3,})\s*solo\b/;
+const DEPTH = 5; // tables rolled inside tables, at most; a table that names itself stops here
 
 // What the panel last said, by note, so it is still there after the note is rewritten and the block drawn again.
 interface Said {
@@ -34,6 +35,7 @@ interface Said {
 
 export default class SoloOraclePlugin extends Plugin {
 	rng: Rng = Math.random;
+	pro = false;
 	said = new Map<string, Said>();
 
 	async onload() {
@@ -82,12 +84,21 @@ export default class SoloOraclePlugin extends Plugin {
 	}
 
 	/** One roll on the table a `table:` line links to, or why it can't be rolled. */
-	async rollTable(link: TableLink, sourcePath: string): Promise<TableRoll | { error: string }> {
+	async rollTable(link: TableLink, sourcePath: string, depth = 1): Promise<TableRoll | { error: string }> {
 		const file = this.app.metadataCache.getFirstLinkpathDest(link.path, sourcePath);
 		if (!(file instanceof TFile)) return { error: `No note "${link.path}"` };
 		const text = section(await this.app.vault.cachedRead(file), link.heading);
 		if (text === null) return { error: `No heading "${link.heading}" in "${link.path}"` };
-		return rollOn(text, () => this.rng()) ?? { error: `Nothing to roll on in "${link.label}"` };
+		const r = rollOn(text, () => this.rng());
+		if (!r) return { error: `Nothing to roll on in "${link.label}"` };
+		const deeper =
+			this.pro && depth < DEPTH
+				? async (l: TableLink) => {
+						const n = await this.rollTable(l, sourcePath, depth + 1);
+						return 'error' in n ? null : n.text;
+					}
+				: null;
+		return { ...r, text: await expand(r.text, () => this.rng(), deeper) };
 	}
 }
 
@@ -228,7 +239,8 @@ class Panel extends MarkdownRenderChild {
 					this.draw();
 					return;
 				}
-				this.say({ big: r.text, small: r.roll !== undefined ? `${link.label}, rolled ${r.roll}` : link.label });
+				const said = r.roll !== undefined ? `${link.label}, rolled ${r.roll}` : link.label;
+				this.say({ big: r.text, small: !this.plugin.pro && hasInnerTable(r.text) ? `${said}. Tables inside tables roll with Pro.` : said });
 				void this.write(null, journalTable(link, r));
 			};
 			const x = chip.createEl('button', { text: '×', cls: 'solo-oracle-remove clickable-icon' });

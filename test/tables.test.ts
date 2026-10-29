@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { journalTable, parseTableLink, rollOn, section } from '../src/tables';
+import { expand, hasInnerTable, journalTable, parseTableLink, rollOn, section } from '../src/tables';
 
 const seq = (...v: number[]) => {
 	let i = 0;
@@ -82,5 +82,31 @@ describe('rolling on a table', () => {
 		const link = parseTableLink('[[Weather#Coast]]')!;
 		expect(journalTable(link, { roll: 4, text: 'Fog rolls in' })).toBe('- **Coast** *(4)*: Fog rolls in');
 		expect(journalTable(link, { text: 'Hail' })).toBe('- **Coast**: Hail');
+	});
+});
+
+describe('weights and what goes inside a result', () => {
+	it('picks rows by a Weight column and leaves the column out', () => {
+		const t = '| Weight | Find |\n|---|---|\n| 1 | A ring |\n| 3 | Rust |\n| 0 | Never |';
+		expect(rollOn(t, () => 0.1)!.text).toBe('A ring'); // 0.4 of 4: inside the first 1
+		expect(rollOn(t, () => 0.5)!.text).toBe('Rust');
+		expect(rollOn(t, () => 0.999)!.text).toBe('Rust'); // the 0 row never comes up
+	});
+
+	it('rolls dice inside a result', async () => {
+		expect(await expand('{{2d6+1}} rats', seq(0.5 / 6, 5.5 / 6), null)).toBe('8 rats');
+		expect(await expand('{{d4-1}} coins', () => 0, null)).toBe('0 coins');
+	});
+
+	it('rolls a table inside a result, or leaves it when it cannot', async () => {
+		const roll = async (l: { path: string; heading?: string }) => (l.heading === 'Goods' ? 'salt fish' : null);
+		expect(await expand('A trader with {{Tables#Goods}}', () => 0, roll)).toBe('A trader with salt fish');
+		expect(await expand('A trader with {{Tables#Nothing}}', () => 0, roll)).toBe('A trader with {{Tables#Nothing}}');
+		expect(await expand('A trader with {{Tables#Goods}}', () => 0, null)).toBe('A trader with {{Tables#Goods}}');
+	});
+
+	it('knows when a table was left inside', () => {
+		expect(hasInnerTable('a {{Goods}}')).toBe(true);
+		expect(hasInnerTable('{{2d6}} rats')).toBe(false);
 	});
 });

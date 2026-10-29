@@ -135,6 +135,30 @@ describe('tables', () => {
 		expect(s.el.querySelector('.solo-oracle-big')!.textContent).toBe('Fog rolls in');
 	});
 
+	it('rolls tables inside a result with Pro, and says so without it', async () => {
+		const s = await setup(WITH);
+		s.app.notes.set('Weather.md', { path: 'Weather.md', content: '## Coast\n\n- Fog and {{Weather#Sound}}\n\n## Sound\n\n- a bell\n' });
+		s.plugin.rng = () => 0;
+		s.button('Coast').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toMatch(/- \*\*Coast\*\*: Fog and \{\{Weather#Sound\}\}\n$/);
+		expect(s.el.querySelector('.solo-oracle-small')!.textContent).toBe('Coast. Tables inside tables roll with Pro.');
+		s.plugin.pro = true;
+		s.button('Coast').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toMatch(/- \*\*Coast\*\*: Fog and a bell\n$/);
+	});
+
+	it('stops a table that rolls on itself', async () => {
+		const s = await setup(WITH);
+		s.app.notes.set('Weather.md', { path: 'Weather.md', content: '## Coast\n\n- again {{Weather#Coast}}\n' });
+		s.plugin.pro = true;
+		s.plugin.rng = () => 0;
+		s.button('Coast').click();
+		await new Promise((r) => setTimeout(r, 10));
+		expect(s.content()).toMatch(/: again again again again again \{\{Weather#Coast\}\}\n$/);
+	});
+
 	it('says why a table cannot be rolled, without writing', async () => {
 		const s = await setup(WITH);
 		s.button('Nowhere').click();

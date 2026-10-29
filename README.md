@@ -62,6 +62,7 @@ What is under the link decides how it rolls:
 
 | Under the link | A roll gives |
 | --- | --- |
+| a table with a `Weight` column | one row, picked by its weight: a row of 3 comes up three times as often as a row of 1, and a row of 0 never does. The weight isn't written |
 | a table whose first column is numbers or ranges (`1-2`, `3`, `4-6`) | the dice in that column's header (`d6`, `2d6`, `d20`) are rolled, or 1 to the highest number, and the matching row comes back with the roll |
 | any other table | one row |
 | a list | one item |
@@ -76,6 +77,8 @@ What is under the link decides how it rolls:
 | 3-4 | Fog off the water |
 | 5-6 | A storm coming in |
 ```
+
+Write dice inside a result in double braces and they roll with it: `{{2d6}} rats` gives `7 rats`, and `{{d4+1}}` or `{{3d6-2}}` work too.
 
 A heading's part of the note runs to the next heading as high as it. The links sit inside a code block, so Obsidian doesn't update them when you rename a note; fix the line by hand if you do.
 

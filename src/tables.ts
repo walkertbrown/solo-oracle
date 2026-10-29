@@ -5,7 +5,7 @@
 //   | 1-3 | Clear      |      (d6, 2d6, d20), or it is 1d(highest number)
 //   | 4-6 | Fog        |
 //
-//   | Name | Trade |          any other table: one row, its cells joined
+//   | Name | Trade |          any other table: one row, its cells joined; a Weight column makes some rows likelier
 //   - A wolf                  a list: one item
 //   Plain lines               otherwise: one non-empty line
 
@@ -67,6 +67,15 @@ export function rollOn(text: string, rng: Rng): TableRoll | null {
 	const pick = <T>(list: T[]) => list[Math.floor(rng() * list.length)]!;
 	const t = pipeTable(text);
 	if (t && t.rows.length) {
+		// a Weight column comes first: its numbers would otherwise read as d-ranges
+		const w = t.headers.findIndex((h) => /^(weight|w)$/i.test(h));
+		if (w >= 0) {
+			const weights = t.rows.map((r) => Math.max(0, Number(r[w]) || 0));
+			const total = weights.reduce((a, b) => a + b, 0);
+			let at = rng() * total;
+			const row = total > 0 ? (t.rows.find((_, i) => (at -= weights[i]!) < 0) ?? t.rows[t.rows.length - 1]!) : pick(t.rows);
+			return { text: row.filter((_, i) => i !== w).join(' | ') };
+		}
 		const ranges = t.rows.map((r) => RANGE.exec(r[0] ?? ''));
 		if (ranges.every(Boolean)) {
 			const dice = /^\s*(\d*)d(\d+)\s*$/i.exec(t.headers[0] ?? '');
@@ -90,6 +99,37 @@ export function rollOn(text: string, rng: Rng): TableRoll | null {
 		.map((l) => l.trim())
 		.filter((l) => l && !/^#{1,6}\s/.test(l) && !RULE.test(l) && !/^---+$/.test(l) && !l.startsWith('```'));
 	return lines.length ? { text: pick(lines) } : null;
+}
+
+// Inside a result, {{2d6+1}} rolls dice and {{Note#Heading}} rolls on another table.
+const INNER = /\{\{\s*([^{}]+?)\s*\}\}/g;
+const DICE = /^(\d*)d(\d+)\s*(?:([+-])\s*(\d+))?$/i;
+
+/** Fills in the {{...}} in a result. `roll` gives another table's result, or null to leave that one as it is. */
+export async function expand(text: string, rng: Rng, roll: ((link: TableLink) => Promise<string | null>) | null): Promise<string> {
+	const parts: string[] = [];
+	let last = 0;
+	for (const m of text.matchAll(INNER)) {
+		parts.push(text.slice(last, m.index), await inner(m[0], m[1]!, rng, roll));
+		last = m.index + m[0].length;
+	}
+	return parts.join('') + text.slice(last);
+}
+
+async function inner(whole: string, body: string, rng: Rng, roll: ((link: TableLink) => Promise<string | null>) | null) {
+	const d = DICE.exec(body);
+	if (d) {
+		let n = 0;
+		for (let i = 0; i < Number(d[1] || 1); i++) n += die(Number(d[2]), rng);
+		return String(n + (d[3] === '-' ? -1 : 1) * Number(d[4] ?? 0));
+	}
+	const link = parseTableLink(body);
+	return (link && roll && (await roll(link))) ?? whole;
+}
+
+/** Whether a result still holds a {{table}} left unrolled. */
+export function hasInnerTable(text: string): boolean {
+	return [...text.matchAll(INNER)].some((m) => !DICE.test(m[1]!));
 }
 
 export function journalTable(link: TableLink, r: TableRoll): string {
