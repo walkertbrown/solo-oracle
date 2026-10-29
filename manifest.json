@@ -3,7 +3,7 @@
 	"name": "Solo Oracle",
 	"version": "0.2.1",
 	"minAppVersion": "1.13.0",
-	"description": "Play tabletop games alone from a note: ask yes or no at the odds you pick, frame scenes, keep threads and people, and get twists as tension rises. The answers write themselves into the note.",
+	"description": "A solo TTRPG oracle and GM emulator in your notes: yes or no at the odds you pick, scenes, threads, NPCs and your own random tables. Every roll writes itself into the note as your journal.",
 	"author": "Bananafest Destiny",
 	"isDesktopOnly": false
 }
