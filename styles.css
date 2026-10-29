@@ -168,3 +168,23 @@
 	display: inline-flex;
 	align-items: center;
 }
+/* the table library, in a side pane: no box around it */
+.solo-oracle.solo-oracle-library {
+	border: 0;
+	background: none;
+	padding: 4px 2px;
+}
+.solo-oracle-library .solo-oracle-said {
+	text-align: left;
+}
+.solo-oracle-library-folder {
+	margin-top: 6px;
+}
+.solo-oracle-library-name {
+	font-weight: 600;
+}
+.solo-oracle-kind {
+	color: var(--text-faint);
+	font-size: 0.85em;
+	margin-left: 6px;
+}

@@ -1,4 +1,5 @@
-import { Editor, MarkdownPostProcessorContext, MarkdownRenderChild, Plugin, TFile } from 'obsidian';
+import { Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { linkText, linkTo, search, tablesIn, type Found } from './library';
 import {
 	ODDS,
 	TENSION_MAX,
@@ -24,6 +25,7 @@ import { expand, hasInnerTable, journalTable, parseTableLink, rollOn, section, t
 
 const TEMPLATE = '```solo\ntension 2\nthread: \nnpc: \n```\n';
 const OPEN = /^((?:\s*>)*\s*)(`{3,}|~{3,})\s*solo\b/;
+const VIEW = 'solo-oracle-library';
 const DEPTH = 5; // tables rolled inside tables, at most; a table that names itself stops here
 
 // What the panel last said, by note, so it is still there after the note is rewritten and the block drawn again.
@@ -33,12 +35,20 @@ interface Said {
 	tone?: 'yes' | 'no';
 }
 
+interface Settings {
+	folder: string; // where the library looks for tables; "" is the whole vault
+}
+
 export default class SoloOraclePlugin extends Plugin {
 	rng: Rng = Math.random;
 	pro = false;
 	said = new Map<string, Said>();
+	settings: Settings = { folder: 'Tables' };
 
 	async onload() {
+		this.settings = { ...this.settings, ...((await this.loadData()) as Partial<Settings> | null) };
+		this.registerView(VIEW, (leaf) => new Library(leaf, this));
+		this.addCommand({ id: 'open-library', name: 'Open table library', callback: () => void this.openLibrary() });
 		this.registerMarkdownCodeBlockProcessor('solo', (src, el, ctx) => {
 			const panel = new Panel(this, el, ctx, src);
 			ctx.addChild(panel);
@@ -59,26 +69,10 @@ export default class SoloOraclePlugin extends Plugin {
 		if (!info || !(file instanceof TFile)) return false;
 		let ok = false;
 		await this.app.vault.process(file, (data) => {
-			const lines = data.split('\n');
-			const open = OPEN.exec(lines[info.lineStart] ?? '');
-			const close = lines[info.lineEnd] ?? '';
-			if (!open || !close.includes(open[2]!)) return data; // the note changed under us; leave it alone
-			if (edit) {
-				const prefix = open[1]!;
-				const body = lines
-					.slice(info.lineStart + 1, info.lineEnd)
-					.map((l) => l.slice(prefix.length))
-					.join('\n');
-				const next = edit(body)
-					.split('\n')
-					.filter((l, i, a) => l.trim() || i < a.length - 1)
-					.map((l) => prefix + l);
-				lines.splice(info.lineStart + 1, info.lineEnd - info.lineStart - 1, ...next);
-			}
+			const out = editBlock(data, info.lineStart, info.lineEnd, edit);
+			if (out === null) return data; // the note changed under us; leave it alone
 			ok = true;
-			let out = lines.join('\n');
-			if (journal) out = append(out, journal);
-			return out;
+			return journal ? append(out, journal) : out;
 		});
 		return ok;
 	}
@@ -100,6 +94,85 @@ export default class SoloOraclePlugin extends Plugin {
 				: null;
 		return { ...r, text: await expand(r.text, () => this.rng(), deeper) };
 	}
+
+	async openLibrary() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW)[0] ?? null;
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({ type: VIEW, active: true });
+		}
+		if (leaf) await workspace.revealLeaf(leaf);
+	}
+
+	inLibrary(path: string): boolean {
+		const f = this.settings.folder.replace(/^\/+|\/+$/g, '');
+		return path.endsWith('.md') && (!f || path.startsWith(f + '/'));
+	}
+
+	/** Every table in the library folder, note by note in path order. */
+	async library(): Promise<Found[]> {
+		const files = this.app.vault
+			.getMarkdownFiles()
+			.filter((f) => this.inLibrary(f.path))
+			.sort((a, b) => a.path.localeCompare(b.path));
+		const all: Found[] = [];
+		for (const f of files) all.push(...tablesIn(f.path, await this.app.vault.cachedRead(f)));
+		return all;
+	}
+
+	/** The open note, if it holds a solo block: where the library writes. */
+	async game(): Promise<TFile | null> {
+		const f = this.app.workspace.getActiveFile();
+		return f && f.extension === 'md' && firstBlock(await this.app.vault.cachedRead(f)) ? f : null;
+	}
+
+	/** Changes the first solo block in `file` and adds `journal` to the end. False when there's no block. */
+	async writeGame(file: TFile, edit: ((body: string) => string) | null, journal?: string): Promise<boolean> {
+		let ok = false;
+		await this.app.vault.process(file, (data) => {
+			const b = firstBlock(data);
+			const out = b && editBlock(data, b.start, b.end, edit);
+			if (!out) return data;
+			ok = true;
+			return journal ? append(out, journal) : out;
+		});
+		return ok;
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+}
+
+/** The block between `start` and `end` with its body run through `edit`, or null when those lines aren't a solo block
+ *  any more. Lines keep a callout's `> ` in front. */
+export function editBlock(data: string, start: number, end: number, edit: ((body: string) => string) | null): string | null {
+	const lines = data.split('\n');
+	const open = OPEN.exec(lines[start] ?? '');
+	if (!open || !(lines[end] ?? '').includes(open[2]!)) return null;
+	if (edit) {
+		const prefix = open[1]!;
+		const body = lines
+			.slice(start + 1, end)
+			.map((l) => l.slice(prefix.length))
+			.join('\n');
+		const next = edit(body)
+			.split('\n')
+			.filter((l, i, a) => l.trim() || i < a.length - 1)
+			.map((l) => prefix + l);
+		lines.splice(start + 1, end - start - 1, ...next);
+	}
+	return lines.join('\n');
+}
+
+export function firstBlock(data: string): { start: number; end: number } | null {
+	const lines = data.split('\n');
+	const start = lines.findIndex((l) => OPEN.test(l));
+	if (start < 0) return null;
+	const fence = OPEN.exec(lines[start]!)![2]!;
+	const end = lines.findIndex((l, i) => i > start && l.includes(fence));
+	return end < 0 ? null : { start, end };
 }
 
 // A list line follows a list line directly; anything else gets a blank line before it.
@@ -285,5 +358,134 @@ class Panel extends MarkdownRenderChild {
 			add.value = '';
 			void this.write((b) => addEntry(b, kind, text));
 		});
+	}
+}
+
+// The table library: a side view of every table in the library folder. Search narrows it; a click rolls and writes
+// the result into the open game, and + adds the table to that game's block.
+class Library extends ItemView {
+	all: Found[] = [];
+	said: Said | null = null;
+	private list!: HTMLElement;
+	private out!: HTMLElement;
+	private query!: HTMLInputElement;
+	private timer = 0;
+
+	constructor(leaf: WorkspaceLeaf, private plugin: SoloOraclePlugin) {
+		super(leaf);
+	}
+
+	getViewType() {
+		return VIEW;
+	}
+	getDisplayText() {
+		return 'Table library';
+	}
+	getIcon() {
+		return 'dices';
+	}
+
+	async onOpen() {
+		const el = this.contentEl;
+		el.empty();
+		el.addClass('solo-oracle', 'solo-oracle-library');
+		if (!this.plugin.pro) {
+			el.createDiv({ cls: 'solo-oracle-label', text: 'Table library' });
+			el.createEl('p', { text: 'The table library comes with Solo Oracle Pro: every table in a folder, to search and roll without adding it to a game first.' });
+			return;
+		}
+		const where = el.createDiv({ cls: 'solo-oracle-row' });
+		where.createSpan({ cls: 'solo-oracle-label', text: 'Folder' });
+		const folder = where.createEl('input', { type: 'text', cls: 'solo-oracle-folder', placeholder: 'Empty for the whole vault' });
+		folder.value = this.plugin.settings.folder;
+		folder.setAttr('aria-label', 'Library folder');
+		folder.addEventListener('change', () => {
+			this.plugin.settings.folder = folder.value.trim();
+			void this.plugin.saveSettings();
+			void this.refresh();
+		});
+		this.query = el.createEl('input', { type: 'text', cls: 'solo-oracle-search', placeholder: 'Search tables' });
+		this.query.setAttr('aria-label', 'Search tables');
+		this.query.addEventListener('input', () => this.draw());
+		this.out = el.createDiv({ cls: 'solo-oracle-said' });
+		this.out.setAttr('aria-live', 'polite');
+		this.list = el.createDiv({ cls: 'solo-oracle-library-list' });
+		const later = (f: TAbstractFile, old?: string) => {
+			if (!this.plugin.inLibrary(f.path) && !(old && this.plugin.inLibrary(old))) return;
+			window.clearTimeout(this.timer);
+			this.timer = window.setTimeout(() => void this.refresh(), 300);
+		};
+		this.register(() => window.clearTimeout(this.timer));
+		for (const e of ['create', 'modify', 'delete'] as const) this.registerEvent(this.app.vault.on(e as 'modify', later));
+		this.registerEvent(this.app.vault.on('rename', later));
+		await this.refresh();
+	}
+
+	async refresh() {
+		this.all = await this.plugin.library();
+		this.draw();
+	}
+
+	private say(s: Said) {
+		this.said = s;
+		this.draw();
+	}
+
+	draw() {
+		const { out, list } = this;
+		out.empty();
+		if (this.said) {
+			out.createDiv({ cls: 'solo-oracle-big', text: this.said.big });
+			if (this.said.small) out.createDiv({ cls: 'solo-oracle-small', text: this.said.small });
+		}
+		list.empty();
+		const found = search(this.all, this.query.value);
+		if (!this.all.length) {
+			const f = this.plugin.settings.folder;
+			list.createEl('p', { cls: 'solo-oracle-small', text: f ? `No tables in "${f}" yet. A heading with a table or a list under it is a table.` : 'No tables in the vault yet. A heading with a table or a list under it is a table.' });
+			return;
+		}
+		list.createDiv({ cls: 'solo-oracle-small', text: found.length === this.all.length ? `${found.length} tables` : `${found.length} of ${this.all.length} tables` });
+		let folder: string | null = null;
+		let note: HTMLElement | null = null;
+		let file = '';
+		for (const f of found) {
+			if (f.folder !== folder) {
+				folder = f.folder;
+				list.createDiv({ cls: 'solo-oracle-label solo-oracle-library-folder', text: f.folder || '/' });
+			}
+			if (f.file !== file || !note) {
+				file = f.file;
+				const box = list.createDiv({ cls: 'solo-oracle-library-note' });
+				box.createDiv({ cls: 'solo-oracle-library-name', text: f.note });
+				note = box.createDiv({ cls: 'solo-oracle-table-row' });
+			}
+			const chip = note.createSpan({ cls: 'solo-oracle-table' });
+			const b = chip.createEl('button', { text: f.heading ?? f.note });
+			b.createSpan({ cls: 'solo-oracle-kind', text: f.kind });
+			b.setAttr('title', `Roll on ${linkText(f)}`);
+			b.onclick = () => void this.roll(f);
+			const add = chip.createEl('button', { text: '+', cls: 'solo-oracle-add-game clickable-icon' });
+			add.setAttr('aria-label', `Add ${f.heading ?? f.note} to the game's tables`);
+			add.onclick = () => void this.addToGame(f);
+		}
+	}
+
+	private async roll(f: Found) {
+		const link = linkTo(f);
+		const r = await this.plugin.rollTable(link, f.file);
+		if ('error' in r) return this.say({ big: 'Can\'t roll', small: r.error });
+		const said = r.roll !== undefined ? `${link.label}, rolled ${r.roll}` : link.label;
+		const game = await this.plugin.game();
+		if (game) await this.plugin.writeGame(game, null, journalTable(link, r));
+		this.say({ big: r.text, small: game ? `${said}. Written in ${game.basename}.` : `${said}. Open a note with a solo block to write rolls into it.` });
+	}
+
+	private async addToGame(f: Found) {
+		const game = await this.plugin.game();
+		if (!game) return this.say({ big: 'No game open', small: 'Open a note with a solo block, then add the table to it.' });
+		const line = linkText(f);
+		await this.plugin.writeGame(game, (body) => (parseSolo(body).tables.includes(line) ? body : addEntry(body, 'table', line)));
+		this.say({ big: f.heading ?? f.note, small: `In ${game.basename}'s tables.` });
 	}
 }

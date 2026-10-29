@@ -43,8 +43,12 @@ export function installDomHelpers() {
 }
 
 export class TFile {
-	constructor(public path: string, public basename = path.split('/').pop()!.replace(/\.md$/, '')) {}
+	extension: string;
+	constructor(public path: string, public basename = path.split('/').pop()!.replace(/\.md$/, '')) {
+		this.extension = path.split('.').pop()!;
+	}
 }
+export type TAbstractFile = { path: string };
 
 export interface FakeNote { path: string; content: string; frontmatter?: Record<string, unknown> }
 
@@ -68,7 +72,14 @@ export class App {
 	folders = new Set<string>();
 	active: string | null = null;
 	private handlers = new Map<string, ((data: never) => void)[]>();
+	vaultHandlers = new Map<string, ((f: TAbstractFile, old?: string) => void)[]>();
+	leaves: WorkspaceLeaf[] = [];
+	views: Record<string, (leaf: WorkspaceLeaf) => ItemView> = {};
 	vault = {
+		on: (name: string, fn: (f: TAbstractFile, old?: string) => void) => {
+			this.vaultHandlers.set(name, [...(this.vaultHandlers.get(name) ?? []), fn]);
+			return { name, fn };
+		},
 		getAbstractFileByPath: (path: string) => (this.find(path) ? new TFile(this.find(path)!.path) : this.folders.has(path) ? { path } : null),
 		cachedRead: async (f: TFile) => this.find(f.path)!.content,
 		getMarkdownFiles: () => [...this.notes.values()].map((n) => new TFile(n.path)),
@@ -80,6 +91,7 @@ export class App {
 		process: async (f: TFile, fn: (data: string) => string) => {
 			const n = this.find(f.path)!;
 			n.content = fn(n.content);
+			for (const h of this.vaultHandlers.get('modify') ?? []) h(new TFile(n.path));
 			return n.content;
 		},
 	};
@@ -95,12 +107,44 @@ export class App {
 		getActiveFile: () => (this.active ? new TFile(this.active) : null),
 		getLeaf: () => ({ openFile: async (f: TFile) => { this.active = f.path; this.opened.push(f.path); } }),
 		openLinkText: async (link: string) => { this.opened.push(link); },
+		getLeavesOfType: (type: string) => this.leaves.filter((l) => l.view?.getViewType() === type),
+		getRightLeaf: () => {
+			const leaf = new WorkspaceLeaf(this);
+			this.leaves.push(leaf);
+			return leaf;
+		},
+		revealLeaf: async (_leaf: WorkspaceLeaf) => {},
 	};
 }
 
 export class Component {
 	load() {}
 	unload() {}
+	registerEvent(_ref: unknown) {}
+	register(_fn: () => void) {}
+}
+
+export class WorkspaceLeaf {
+	view: ItemView | null = null;
+	constructor(public app: App) {}
+	async setViewState(s: { type: string }) {
+		this.view = this.app.views[s.type]!(this);
+		await this.view.onOpen();
+	}
+}
+
+export class ItemView extends Component {
+	app: App;
+	containerEl = document.createElement('div');
+	contentEl = document.createElement('div');
+	constructor(public leaf: WorkspaceLeaf) {
+		super();
+		this.app = leaf.app;
+		this.containerEl.append(document.createElement('div'), this.contentEl);
+	}
+	getViewType() { return ''; }
+	async onOpen() {}
+	async onClose() {}
 }
 export class MarkdownRenderChild extends Component {
 	constructor(public containerEl: HTMLElement) { super(); }
@@ -116,7 +160,7 @@ export class Plugin extends Component {
 	registerMarkdownPostProcessor(fn: (el: HTMLElement, ctx: Ctx) => void) { this.postProcessors.push(fn); }
 	registerMarkdownCodeBlockProcessor(lang: string, fn: (src: string, el: HTMLElement, ctx: Ctx) => void) { this.codeBlocks[lang] = fn; }
 	addCommand(c: { id: string; name: string; callback?: () => void }) { this.commands.push(c as never); }
-	registerEvent(_ref: unknown) {}
+	registerView(type: string, fn: (leaf: WorkspaceLeaf) => ItemView) { this.app.views[type] = fn; }
 	intervals: number[] = [];
 	registerInterval(id: number) { this.intervals.push(id); return id; }
 	onunload() { for (const id of this.intervals) window.clearInterval(id); }

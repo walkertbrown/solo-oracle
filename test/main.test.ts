@@ -176,3 +176,78 @@ describe('tables', () => {
 		expect(s.button('Who')).toBeDefined();
 	});
 });
+
+describe('the table library', () => {
+	const COAST = '## Weather\n\n| d6 | Sky |\n| --- | --- |\n| 1-3 | Clear |\n| 4-6 | Fog rolls in |\n\n## Names\n\n- Marra\n- Aldous\n';
+
+	async function library(pro = true) {
+		const s = await setup(NOTE);
+		s.plugin.pro = pro;
+		s.app.notes.set('Tables/Coast.md', { path: 'Tables/Coast.md', content: COAST });
+		s.app.notes.set('Elsewhere.md', { path: 'Elsewhere.md', content: '- a\n- b\n' });
+		await s.plugin.openLibrary();
+		const view = s.app.leaves[0]!.view!;
+		const lib = view.contentEl;
+		const chip = (t: string) => Array.from(lib.querySelectorAll<HTMLButtonElement>('.solo-oracle-table button')).find((b) => b.firstChild?.textContent === t)!;
+		return { ...s, lib, chip };
+	}
+
+	it('lists the tables in the Tables folder, by note', async () => {
+		const { lib } = await library();
+		expect(lib.querySelector('.solo-oracle-library-folder')!.textContent).toBe('Tables');
+		expect(lib.querySelector('.solo-oracle-library-name')!.textContent).toBe('Coast');
+		expect(Array.from(lib.querySelectorAll('.solo-oracle-table > button:first-child')).map((b) => b.textContent)).toEqual(['Weatherd6', 'Names2 items']);
+	});
+
+	it('narrows to what the search finds', async () => {
+		const { lib } = await library();
+		const q = lib.querySelector<HTMLInputElement>('.solo-oracle-search')!;
+		q.value = 'aldous';
+		q.dispatchEvent(new Event('input'));
+		expect(lib.querySelectorAll('.solo-oracle-table')).toHaveLength(1);
+		expect(lib.textContent).toContain('1 of 2 tables');
+	});
+
+	it('rolls into the open game, or only shows it when no game is open', async () => {
+		const s = await library();
+		s.plugin.rng = seq((5 - 0.5) / 6);
+		s.chip('Weather').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.lib.querySelector('.solo-oracle-big')!.textContent).toBe('Fog rolls in');
+		expect(s.lib.querySelector('.solo-oracle-small')!.textContent).toContain('Open a note with a solo block');
+		expect(s.content()).toBe(NOTE);
+		s.app.active = 'Game.md';
+		s.chip('Weather').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toMatch(/- \*\*Weather\*\* \*\(5\)\*: Fog rolls in\n$/);
+		expect(s.lib.querySelector('.solo-oracle-said .solo-oracle-small')!.textContent).toBe('Weather, rolled 5. Written in Game.');
+	});
+
+	it('adds a table to the open game once', async () => {
+		const s = await library();
+		s.app.active = 'Game.md';
+		const add = s.lib.querySelector<HTMLButtonElement>('.solo-oracle-add-game')!;
+		add.click();
+		await new Promise((r) => setTimeout(r, 0));
+		add.click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toContain('npc: Old Marra\ntable: [[Tables/Coast#Weather]]\n```');
+		expect(s.content().match(/table:/g)).toHaveLength(1);
+	});
+
+	it('looks in another folder, or the whole vault', async () => {
+		const s = await library();
+		const f = s.lib.querySelector<HTMLInputElement>('.solo-oracle-folder')!;
+		f.value = '';
+		f.dispatchEvent(new Event('change'));
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.lib.textContent).toContain('3 tables');
+		expect((s.plugin as never as { data: unknown }).data).toEqual({ folder: '' });
+	});
+
+	it('says it comes with Pro', async () => {
+		const { lib } = await library(false);
+		expect(lib.textContent).toContain('comes with Solo Oracle Pro');
+		expect(lib.querySelector('.solo-oracle-search')).toBeNull();
+	});
+});

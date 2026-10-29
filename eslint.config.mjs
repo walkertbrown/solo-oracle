@@ -1,5 +1,6 @@
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import tseslint from 'typescript-eslint';
+import { DEFAULT_BRANDS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/brands.js';
 
 export default tseslint.config(
 	{ ignores: ['main.js', 'node_modules/**', 'test/**'] },
@@ -7,5 +8,7 @@ export default tseslint.config(
 	{
 		files: ['src/**/*.ts'],
 		languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
+		// the plugin's own name, and its paid part
+		rules: { 'obsidianmd/ui/sentence-case': ['warn', { brands: [...DEFAULT_BRANDS, 'Solo Oracle Pro', 'Solo Oracle', 'Pro'] }] },
 	},
 );

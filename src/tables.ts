@@ -46,6 +46,8 @@ export interface TableRoll {
 
 const RULE = /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$/;
 const RANGE = /^\s*(\d+)\s*(?:[-–]\s*(\d+))?\s*$/;
+const WEIGHT = /^(weight|w)$/i;
+const ITEM = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[.\]\s+)?(.*\S)\s*$/;
 
 function pipeTable(text: string): { headers: string[]; rows: string[][] } | null {
 	const lines = text
@@ -68,7 +70,7 @@ export function rollOn(text: string, rng: Rng): TableRoll | null {
 	const t = pipeTable(text);
 	if (t && t.rows.length) {
 		// a Weight column comes first: its numbers would otherwise read as d-ranges
-		const w = t.headers.findIndex((h) => /^(weight|w)$/i.test(h));
+		const w = t.headers.findIndex((h) => WEIGHT.test(h));
 		if (w >= 0) {
 			const weights = t.rows.map((r) => Math.max(0, Number(r[w]) || 0));
 			const total = weights.reduce((a, b) => a + b, 0);
@@ -88,17 +90,37 @@ export function rollOn(text: string, rng: Rng): TableRoll | null {
 		}
 		return { text: pick(t.rows).join(' | ') };
 	}
-	const items: string[] = [];
-	for (const l of text.split('\n')) {
-		const m = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[.\]\s+)?(.*\S)\s*$/.exec(l);
-		if (m) items.push(m[1]!);
-	}
+	const items = listItems(text);
 	if (items.length) return { text: pick(items) };
 	const lines = text
 		.split('\n')
 		.map((l) => l.trim())
 		.filter((l) => l && !/^#{1,6}\s/.test(l) && !RULE.test(l) && !/^---+$/.test(l) && !l.startsWith('```'));
 	return lines.length ? { text: pick(lines) } : null;
+}
+
+function listItems(text: string): string[] {
+	return text
+		.split('\n')
+		.map((l) => ITEM.exec(l)?.[1])
+		.filter((i): i is string => i !== undefined);
+}
+
+/** What kind of table the text holds, for the library: "d6", "weighted", "8 rows" or "12 items". Null for a single
+ *  item or plain lines, so prose doesn't show up as a table. */
+export function kindOf(text: string): string | null {
+	const t = pipeTable(text);
+	if (t && t.rows.length) {
+		if (t.headers.some((h) => WEIGHT.test(h))) return 'weighted';
+		const ranges = t.rows.map((r) => RANGE.exec(r[0] ?? ''));
+		if (ranges.every(Boolean)) {
+			const head = (t.headers[0] ?? '').trim().toLowerCase();
+			return /^\d*d\d+$/.test(head) ? head : `d${Math.max(...ranges.map((m) => Number(m![2] ?? m![1])))}`;
+		}
+		return t.rows.length === 1 ? '1 row' : `${t.rows.length} rows`;
+	}
+	const items = listItems(text).length;
+	return items >= 2 ? `${items} items` : null;
 }
 
 // Inside a result, {{2d6+1}} rolls dice and {{Note#Heading}} rolls on another table.
