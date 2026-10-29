@@ -1,5 +1,6 @@
 import { App, Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Modal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import { freePath, importTable } from './import';
+import { story, type Rolls } from './story';
 import { linkText, linkTo, search, tablesIn, type Found } from './library';
 import {
 	ODDS,
@@ -51,6 +52,7 @@ export default class SoloOraclePlugin extends Plugin {
 		this.registerView(VIEW, (leaf) => new Library(leaf, this));
 		this.addCommand({ id: 'open-library', name: 'Open table library', callback: () => void this.openLibrary() });
 		this.addCommand({ id: 'import-table', name: 'Import a table', callback: () => this.importTable() });
+		this.addCommand({ id: 'export-story', name: 'Export this game as a story', callback: () => void this.exportStory() });
 		this.registerMarkdownCodeBlockProcessor('solo', (src, el, ctx) => {
 			const panel = new Panel(this, el, ctx, src);
 			ctx.addChild(panel);
@@ -110,6 +112,22 @@ export default class SoloOraclePlugin extends Plugin {
 	importTable() {
 		if (!this.pro) return void new Notice('Importing tables comes with Solo Oracle Pro.');
 		new ImportModal(this.app, this).open();
+	}
+
+	async exportStory() {
+		if (!this.pro) return void new Notice('Exporting a game comes with Solo Oracle Pro.');
+		const game = await this.game();
+		if (!game) return void new Notice('Open a note with a solo block first.');
+		new StoryModal(this.app, this, game).open();
+	}
+
+	/** Writes the story of `game` beside it and opens it. */
+	async writeStory(game: TFile, rolls: Rolls) {
+		const { vault } = this.app;
+		const text = story(await vault.cachedRead(game), rolls);
+		const at = game.path.lastIndexOf('/');
+		const path = freePath(at < 0 ? '' : game.path.slice(0, at), `${game.basename} (story)`, (p) => !!vault.getAbstractFileByPath(p));
+		await this.app.workspace.getLeaf(true).openFile(await vault.create(path, text));
 	}
 
 	/** Writes an imported table as a note of its own in the library folder. The note's path. */
@@ -556,6 +574,31 @@ class ImportModal extends Modal {
 			this.close();
 		};
 		read();
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
+// Export: which way the rolls go in the story.
+class StoryModal extends Modal {
+	constructor(app: App, private plugin: SoloOraclePlugin, private game: TFile) {
+		super(app);
+	}
+
+	onOpen() {
+		this.setTitle('Export this game as a story');
+		const el = this.contentEl;
+		el.addClass('solo-oracle', 'solo-oracle-import');
+		el.createEl('p', { text: `A copy of ${this.game.basename} goes beside it, without the solo block. Your note stays as it is.` });
+		const go = (rolls: Rolls) => async () => {
+			await this.plugin.writeStory(this.game, rolls);
+			this.close();
+		};
+		const row = el.createDiv({ cls: 'solo-oracle-row solo-oracle-end' });
+		row.createEl('button', { text: 'Keep the rolls, one short line each', cls: 'mod-cta' }).onclick = go('short');
+		row.createEl('button', { text: 'Leave the rolls out' }).onclick = go('out');
 	}
 
 	onClose() {

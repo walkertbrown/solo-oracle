@@ -280,3 +280,31 @@ describe('importing a table', () => {
 		expect(Notice.last).toBe('Importing tables comes with Solo Oracle Pro.');
 	});
 });
+
+describe('exporting a game', () => {
+	it('writes the story beside the game and opens it', async () => {
+		const s = await setup(NOTE + '\n\n- **?** Is it raining? *(even)* → **No**\n');
+		s.plugin.pro = true;
+		s.app.active = 'Game.md';
+		await s.plugin.exportStory();
+		const m = Modal.last!.contentEl;
+		Array.from(m.querySelectorAll('button')).find((b) => b.textContent === 'Leave the rolls out')!.click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.app.notes.get('Game (story).md')!.content).toBe('# Run\n\nI wake on the ferry.\n');
+		expect(s.app.opened).toEqual(['Game (story).md']);
+		s.app.active = 'Game.md'; // the story is the open note now; go back to the game
+		await s.plugin.exportStory();
+		Modal.last!.contentEl.querySelector<HTMLButtonElement>('.mod-cta')!.click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.app.notes.get('Game (story) 2.md')!.content).toBe('# Run\n\nI wake on the ferry.\n\n*Is it raining? No.*\n');
+	});
+
+	it('needs a game open, and Pro', async () => {
+		const s = await setup(NOTE);
+		await s.plugin.exportStory();
+		expect(Notice.last).toBe('Exporting a game comes with Solo Oracle Pro.');
+		s.plugin.pro = true;
+		await s.plugin.exportStory();
+		expect(Notice.last).toBe('Open a note with a solo block first.');
+	});
+});
