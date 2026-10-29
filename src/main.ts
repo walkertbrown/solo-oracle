@@ -481,6 +481,11 @@ class Panel extends MarkdownRenderChild {
 			add.value = '';
 			void this.write((body) => addEntry(body, 'table', text));
 		});
+		if (!this.plugin.pro) {
+			const hint = box.createDiv({ cls: 'solo-oracle-pro-hint' });
+			hint.appendText('All your tables in one library, imported from text or CSV, rolling tables inside tables: ');
+			hint.createEl('a', { text: 'Solo Oracle Pro', href: BUY });
+		}
 	}
 
 	private list(parent: HTMLElement, kind: ListKind, title: string, items: string[]) {

@@ -166,6 +166,16 @@ describe('tables', () => {
 		expect(s.content()).toMatch(/- \*\*Coast\*\*: Fog and a bell\n$/);
 	});
 
+	it('points to Pro under the tables until Pro is on', async () => {
+		const s = await setup(WITH);
+		s.app.notes.set('Weather.md', { path: 'Weather.md', content: WEATHER });
+		expect(s.el.querySelector('.solo-oracle-pro-hint a')?.getAttribute('href')).toBe(BUY);
+		s.plugin.pro = true;
+		s.button('Coast').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.el.querySelector('.solo-oracle-pro-hint')).toBeNull();
+	});
+
 	it('stops a table that rolls on itself', async () => {
 		const s = await setup(WITH);
 		s.app.notes.set('Weather.md', { path: 'Weather.md', content: '## Coast\n\n- again {{Weather#Coast}}\n' });

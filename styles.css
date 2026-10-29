@@ -169,6 +169,11 @@
 	display: inline-flex;
 	align-items: center;
 }
+.solo-oracle-pro-hint {
+	color: var(--text-faint);
+	font-size: 12px;
+	margin-top: 6px;
+}
 /* the table library, in a side pane: no box around it */
 .solo-oracle.solo-oracle-library {
 	border: 0;
