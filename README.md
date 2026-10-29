@@ -58,6 +58,8 @@ Add them in the boxes under the panel, remove them with ×, and press **Pick one
 
 Add a `table:` line with a link to a note, or to a heading in one, and the panel gets a button that rolls on it. Type `Tables#Weather` in the box under the panel, or write the line yourself. `[[Tables#Weather|Sky]]` names the button Sky.
 
+No tables yet? Press **Add starter tables** on the panel, or run the command of that name. It writes one note, `Tables/Starter tables`, with six small tables to start from (Place, Complication, Stranger, Weather, Found and Mood), and puts Place, Complication and Stranger on the panel. The note is yours to change; adding the starter tables again never overwrites it.
+
 What is under the link decides how it rolls:
 
 | Under the link | A roll gives |
@@ -100,7 +102,7 @@ Write your own lines between them. The panel only ever adds to the end of the no
 
 ## Original tables
 
-The odds, twist focuses and word lists were written for this plugin. None of them come from a published oracle, so the plugin works with any solo game and any setting.
+The odds, twist focuses, word lists and starter tables were written for this plugin. None of them come from a published oracle, so the plugin works with any solo game and any setting.
 
 ## Privacy
 

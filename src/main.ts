@@ -1,6 +1,7 @@
 import { App, Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Modal, Notice, Plugin, PluginSettingTab, SettingDefinitionItem, TAbstractFile, TFile, WorkspaceLeaf, requestUrl } from 'obsidian';
 import { freePath, importTable } from './import';
 import { story, type Rolls } from './story';
+import { STARTER, STARTER_NOTE, withStarter } from './starter';
 import { linkText, linkTo, search, tablesIn, type Found } from './library';
 import {
 	ODDS,
@@ -59,6 +60,7 @@ export default class SoloOraclePlugin extends Plugin {
 		this.addCommand({ id: 'open-library', name: 'Open table library', callback: () => void this.openLibrary() });
 		this.addCommand({ id: 'import-table', name: 'Import a table', callback: () => this.importTable() });
 		this.addCommand({ id: 'export-story', name: 'Export this game as a story', callback: () => void this.exportStory() });
+		this.addCommand({ id: 'add-starter-tables', name: 'Add starter tables', callback: () => void this.addStarter() });
 		this.registerMarkdownCodeBlockProcessor('solo', (src, el, ctx) => {
 			const panel = new Panel(this, el, ctx, src);
 			ctx.addChild(panel);
@@ -144,6 +146,29 @@ export default class SoloOraclePlugin extends Plugin {
 		const path = freePath(folder, name, (p) => !!vault.getAbstractFileByPath(p));
 		await vault.create(path, md + '\n');
 		return path;
+	}
+
+	/** Writes the starter tables into the library folder, unless they are there already. Their note's path. */
+	async starter(): Promise<string> {
+		const { vault } = this.app;
+		const folder = this.settings.folder.replace(/^\/+|\/+$/g, '');
+		const path = `${folder ? `${folder}/` : ''}${STARTER}.md`;
+		if (vault.getAbstractFileByPath(path)) return path;
+		if (folder && !vault.getAbstractFileByPath(folder)) await vault.createFolder(folder);
+		await vault.create(path, STARTER_NOTE);
+		return path;
+	}
+
+	/** The command: the starter tables, on the open game's panel if there is one, or opened to read if not. */
+	async addStarter() {
+		const path = await this.starter();
+		const game = await this.game();
+		if (game && (await this.writeGame(game, (body) => withStarter(body, path)))) {
+			return void new Notice(`Starter tables are in ${path}. Place, Complication and Stranger are on this game's panel.`);
+		}
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
+		new Notice(`Starter tables are in ${path}. Add one to a game with a table line, like table: [[${STARTER}#Place]].`);
 	}
 
 	inLibrary(path: string): boolean {
@@ -421,6 +446,14 @@ class Panel extends MarkdownRenderChild {
 			x.setAttr('aria-label', `Remove ${line}`);
 			x.onclick = () => void this.write((body) => removeEntry(body, 'table', i));
 		});
+		if (!lines.length) {
+			const b = row.createEl('button', { text: 'Add starter tables', cls: 'solo-oracle-starter' });
+			b.setAttr('title', 'Write a note of starter tables and put three of them here');
+			b.onclick = async () => {
+				const path = await this.plugin.starter();
+				void this.write((body) => withStarter(body, path));
+			};
+		}
 		const add = box.createEl('input', { type: 'text', cls: 'solo-oracle-add-table', placeholder: 'Add a table: a note, or Note#Heading' });
 		add.setAttr('aria-label', 'Add a table');
 		add.addEventListener('keydown', (e) => {

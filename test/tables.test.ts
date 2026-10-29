@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expand, hasInnerTable, journalTable, parseTableLink, rollOn, section } from '../src/tables';
+import { expand, hasInnerTable, journalTable, kindOf, parseTableLink, rollOn, section } from '../src/tables';
 
 const seq = (...v: number[]) => {
 	let i = 0;
@@ -108,5 +108,17 @@ describe('weights and what goes inside a result', () => {
 	it('knows when a table was left inside', () => {
 		expect(hasInnerTable('a {{Goods}}')).toBe(true);
 		expect(hasInnerTable('{{2d6}} rats')).toBe(false);
+	});
+});
+
+describe('the starter tables', () => {
+	it('rolls on every one of them, and each is the kind it shows', async () => {
+		const { STARTER_NOTE } = await import('../src/starter');
+		const kinds: Record<string, string> = { Place: 'd8', Complication: 'd10', Stranger: '10 items', Weather: 'weighted', Found: '2d6', Mood: '8 items' };
+		for (const [h, kind] of Object.entries(kinds)) {
+			const text = section(STARTER_NOTE, h)!;
+			expect(kindOf(text), h).toBe(kind);
+			for (const v of [0, 0.5, 0.999]) expect(rollOn(text, () => v)!.text, h).not.toBe('no row for that roll');
+		}
 	});
 });

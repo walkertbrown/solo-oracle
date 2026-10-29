@@ -177,6 +177,39 @@ describe('tables', () => {
 	});
 });
 
+describe('starter tables', () => {
+	it('writes the note once from the panel, and puts three of its tables on the panel', async () => {
+		const s = await setup(NOTE);
+		await s.click('Add starter tables');
+		const note = s.app.notes.get('Tables/Starter tables.md')!.content;
+		expect(note).toMatch(/^# Starter tables\n/);
+		expect(s.content()).toContain('npc: Old Marra\ntable: [[Tables/Starter tables#Place|Place]]\ntable: [[Tables/Starter tables#Complication|Complication]]\ntable: [[Tables/Starter tables#Stranger|Stranger]]\n```');
+		expect(s.el.querySelector('.solo-oracle-starter')).toBeNull();
+		s.plugin.rng = () => 0;
+		s.button('Place').click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.content()).toMatch(/- \*\*Place\*\* \*\(1\)\*: A crossroads with a marker nobody can read\n$/);
+	});
+
+	it('leaves a starter note you changed alone, and adds no table twice', async () => {
+		const s = await setup(NOTE);
+		s.app.notes.set('Tables/Starter tables.md', { path: 'Tables/Starter tables.md', content: '## Place\n\n- My own place\n' });
+		s.app.active = 'Game.md';
+		await s.plugin.addStarter();
+		await s.plugin.addStarter();
+		expect(s.app.notes.get('Tables/Starter tables.md')!.content).toBe('## Place\n\n- My own place\n');
+		expect(s.content().match(/^table: /gm)).toHaveLength(3);
+		expect(Notice.last).toBe("Starter tables are in Tables/Starter tables.md. Place, Complication and Stranger are on this game's panel.");
+	});
+
+	it('opens the note when no game is open', async () => {
+		const s = await setup(NOTE);
+		await s.plugin.addStarter();
+		expect(s.app.opened).toEqual(['Tables/Starter tables.md']);
+		expect(s.content()).toBe(NOTE);
+	});
+});
+
 describe('the table library', () => {
 	const COAST = '## Weather\n\n| d6 | Sky |\n| --- | --- |\n| 1-3 | Clear |\n| 4-6 | Fog rolls in |\n\n## Names\n\n- Marra\n- Aldous\n';
 
