@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeAll, describe, expect, it } from 'vitest';
-import { App, Modal, Notice, ctx, installDomHelpers } from './obsidian-shim';
-import SoloOraclePlugin, { append } from '../src/main';
+import { App, Modal, Notice, ctx, installDomHelpers, requestUrl } from './obsidian-shim';
+import SoloOraclePlugin, { SERVER, append } from '../src/main';
 
 beforeAll(() => installDomHelpers());
 
@@ -242,7 +242,7 @@ describe('the table library', () => {
 		f.dispatchEvent(new Event('change'));
 		await new Promise((r) => setTimeout(r, 0));
 		expect(s.lib.textContent).toContain('3 tables');
-		expect((s.plugin as never as { data: unknown }).data).toEqual({ folder: '' });
+		expect((s.plugin as never as { data: unknown }).data).toMatchObject({ folder: '' });
 	});
 
 	it('says it comes with Pro', async () => {
@@ -306,5 +306,54 @@ describe('exporting a game', () => {
 		s.plugin.pro = true;
 		await s.plugin.exportStory();
 		expect(Notice.last).toBe('Open a note with a solo block first.');
+	});
+});
+
+describe('the Pro key', () => {
+	it('turns Pro on for a good key, keeps it, and turns it off for a bad one', async () => {
+		const s = await setup(NOTE);
+		s.plugin.settings.key = 'AbC123_xyz-987654';
+		requestUrl.reply = () => ({ status: 200, json: { ok: true, sold: true } });
+		expect(await s.plugin.checkKey()).toContain('Good key');
+		expect(requestUrl.sent.at(-1)).toMatchObject({ url: `${SERVER}/api/oracle/key`, method: 'POST', body: JSON.stringify({ key: 'AbC123_xyz-987654' }) });
+		expect(s.plugin.pro).toBe(true);
+		// a new start reads it back without going online
+		const sent = requestUrl.sent.length;
+		const again = new SoloOraclePlugin(s.app as never, { id: 'solo-oracle' } as never);
+		(again as never as { data: unknown }).data = (s.plugin as never as { data: unknown }).data;
+		await again.onload();
+		expect(again.pro).toBe(true);
+		expect(requestUrl.sent.length).toBe(sent);
+		requestUrl.reply = () => ({ status: 200, json: { ok: false, sold: true, buy: 'https://example.itch.io/pro' } });
+		expect(await s.plugin.checkKey()).toBe("itch doesn't know that key for Solo Oracle Pro. Paste the address of your download page, or the key at the end of it. Keys are at https://example.itch.io/pro");
+		expect(s.plugin.pro).toBe(false);
+	});
+
+	it('leaves Pro as it is when the server can\'t be asked or nothing is sold yet', async () => {
+		const s = await setup(NOTE);
+		s.plugin.pro = s.plugin.settings.pro = true;
+		requestUrl.reply = () => { throw new Error('offline'); };
+		expect(await s.plugin.checkKey()).toContain('Could not check');
+		requestUrl.reply = () => ({ status: 200, json: { ok: false, sold: false } });
+		expect(await s.plugin.checkKey()).toContain("isn't sold yet");
+		expect(s.plugin.pro).toBe(true);
+	});
+
+	it('opens the library when Pro comes on', async () => {
+		const s = await setup(NOTE);
+		await s.plugin.openLibrary();
+		const lib = s.app.leaves[0]!.view!.contentEl;
+		expect(lib.textContent).toContain('comes with Solo Oracle Pro');
+		requestUrl.reply = () => ({ status: 200, json: { ok: true, sold: true } });
+		await s.plugin.checkKey();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(lib.querySelector('.solo-oracle-folder')).not.toBeNull();
+	});
+
+	it('asks for a lost key by email', async () => {
+		const s = await setup(NOTE);
+		requestUrl.reply = () => ({ status: 200, json: { ok: true } });
+		expect(await s.plugin.mailKey('me@example.com')).toContain('If that address bought Solo Oracle Pro');
+		expect(requestUrl.sent.at(-1)).toMatchObject({ url: `${SERVER}/api/oracle/key/mail`, body: JSON.stringify({ email: 'me@example.com' }) });
 	});
 });

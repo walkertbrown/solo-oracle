@@ -210,3 +210,16 @@ export function setIcon(el: HTMLElement, name: string) {
 	const hook = (globalThis as unknown as { __iconHook?: (el: HTMLElement, name: string) => void }).__iconHook;
 	if (hook) hook(el, name);
 }
+
+/** Requests the plugin makes, answered by whatever a test puts in `requestUrl.reply`. */
+export interface Req { url: string; method?: string; headers?: Record<string, string>; body?: string; contentType?: string; throw?: boolean }
+type Reply = (r: Req) => { status: number; json?: unknown } | Promise<{ status: number; json?: unknown }>;
+export const requestUrl = Object.assign(
+	async (r: Req) => {
+		requestUrl.sent.push(r);
+		return requestUrl.reply(r);
+	},
+	{ sent: [] as Req[], reply: ((_r: Req) => ({ status: 200, json: { ok: true, sold: true } })) as Reply },
+);
+
+export type SettingDefinitionItem = unknown;

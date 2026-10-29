@@ -1,4 +1,4 @@
-import { App, Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Modal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Modal, Notice, Plugin, PluginSettingTab, SettingDefinitionItem, TAbstractFile, TFile, WorkspaceLeaf, requestUrl } from 'obsidian';
 import { freePath, importTable } from './import';
 import { story, type Rolls } from './story';
 import { linkText, linkTo, search, tablesIn, type Found } from './library';
@@ -37,18 +37,24 @@ interface Said {
 	tone?: 'yes' | 'no';
 }
 
+export const SERVER = 'https://bulkhead.bananafest-destiny.com';
+
 interface Settings {
 	folder: string; // where the library looks for tables; "" is the whole vault
+	key: string; // the Pro key from itch (or the download page's address); kept in the vault's plugin folder
+	pro: boolean; // the server said the key is good; asked again only when Check is pressed
 }
 
 export default class SoloOraclePlugin extends Plugin {
 	rng: Rng = Math.random;
 	pro = false;
 	said = new Map<string, Said>();
-	settings: Settings = { folder: 'Tables' };
+	settings: Settings = { folder: 'Tables', key: '', pro: false };
 
 	async onload() {
 		this.settings = { ...this.settings, ...((await this.loadData()) as Partial<Settings> | null) };
+		this.pro = this.settings.pro;
+		this.addSettingTab(new SoloOracleSettingTab(this.app, this));
 		this.registerView(VIEW, (leaf) => new Library(leaf, this));
 		this.addCommand({ id: 'open-library', name: 'Open table library', callback: () => void this.openLibrary() });
 		this.addCommand({ id: 'import-table', name: 'Import a table', callback: () => this.importTable() });
@@ -177,6 +183,66 @@ export default class SoloOraclePlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	/** Asks the server whether the key in settings is good, turns Pro on or off by the answer, and says it in words.
+	 *  The only time the plugin goes online, with the Mail button below. */
+	async checkKey(): Promise<string> {
+		const r = await requestUrl({ url: `${SERVER}/api/oracle/key`, method: 'POST', contentType: 'application/json', body: JSON.stringify({ key: this.settings.key }), throw: false }).catch(() => null);
+		if (r?.status !== 200) return 'Could not check the key. Check the connection and try again.';
+		const got = r.json as { ok?: boolean; sold?: boolean; buy?: string };
+		if (got.sold === false) return 'Solo Oracle Pro isn\'t sold yet.';
+		await this.setPro(!!got.ok);
+		if (got.ok) return 'Good key. Pro is on in this vault: tables inside tables, the table library, importing and exporting.';
+		return `itch doesn't know that key for Solo Oracle Pro. Paste the address of your download page, or the key at the end of it.${got.buy ? ` Keys are at ${got.buy}` : ''}`;
+	}
+
+	/** Mails the key again to the address that bought Pro. The server says the same whether or not it did. */
+	async mailKey(email: string): Promise<string> {
+		const r = await requestUrl({ url: `${SERVER}/api/oracle/key/mail`, method: 'POST', contentType: 'application/json', body: JSON.stringify({ email }), throw: false }).catch(() => null);
+		return r?.status === 200 ? 'If that address bought Solo Oracle Pro, its key is on the way. Look in your mail in a minute.' : 'Could not ask for the key. Check the connection and try again.';
+	}
+
+	async setPro(on: boolean) {
+		if (this.pro === on) return;
+		this.pro = this.settings.pro = on;
+		await this.saveSettings();
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof Library) void leaf.view.onOpen();
+	}
+}
+
+class SoloOracleSettingTab extends PluginSettingTab {
+	constructor(app: App, private plugin: SoloOraclePlugin) {
+		super(app, plugin);
+	}
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const p = this.plugin;
+		return [
+			{
+				name: 'Pro key',
+				desc: 'The address of your itch download page for Solo Oracle Pro, or the key at the end of it. Check asks this plugin\'s server once, and Pro stays on after that, offline too. It is kept in this vault\'s plugin folder.',
+				render: (setting) => {
+					const said = setting.descEl.createDiv({ cls: 'solo-oracle-said' });
+					setting
+						.addText((t) => t.setPlaceholder('Download page address or key').setValue(p.settings.key).onChange(async (v) => {
+							p.settings.key = v.trim();
+							await p.saveSettings();
+						}))
+						.addButton((b) => b.setButtonText('Check').onClick(async () => said.setText(await p.checkKey())));
+				},
+			},
+			{
+				name: 'Lost your key?',
+				desc: 'Type the email you bought Solo Oracle Pro with, and its key is mailed there.',
+				render: (setting) => {
+					let email = '';
+					const said = setting.descEl.createDiv({ cls: 'solo-oracle-said' });
+					setting
+						.addText((t) => t.setPlaceholder('you@example.com').onChange((v) => (email = v.trim())))
+						.addButton((b) => b.setButtonText('Mail my key').onClick(async () => said.setText(await p.mailKey(email))));
+				},
+			},
+		];
 	}
 }
 
@@ -426,7 +492,7 @@ class Library extends ItemView {
 		el.addClass('solo-oracle', 'solo-oracle-library');
 		if (!this.plugin.pro) {
 			el.createDiv({ cls: 'solo-oracle-label', text: 'Table library' });
-			el.createEl('p', { text: 'The table library comes with Solo Oracle Pro: every table in a folder, to search and roll without adding it to a game first.' });
+			el.createEl('p', { text: 'The table library comes with Solo Oracle Pro: every table in a folder, to search and roll without adding it to a game first. A Pro key goes in Solo Oracle\'s settings.' });
 			return;
 		}
 		const where = el.createDiv({ cls: 'solo-oracle-row' });
