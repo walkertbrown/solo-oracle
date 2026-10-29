@@ -1,4 +1,5 @@
-import { Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Modal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { freePath, importTable } from './import';
 import { linkText, linkTo, search, tablesIn, type Found } from './library';
 import {
 	ODDS,
@@ -49,6 +50,7 @@ export default class SoloOraclePlugin extends Plugin {
 		this.settings = { ...this.settings, ...((await this.loadData()) as Partial<Settings> | null) };
 		this.registerView(VIEW, (leaf) => new Library(leaf, this));
 		this.addCommand({ id: 'open-library', name: 'Open table library', callback: () => void this.openLibrary() });
+		this.addCommand({ id: 'import-table', name: 'Import a table', callback: () => this.importTable() });
 		this.registerMarkdownCodeBlockProcessor('solo', (src, el, ctx) => {
 			const panel = new Panel(this, el, ctx, src);
 			ctx.addChild(panel);
@@ -103,6 +105,21 @@ export default class SoloOraclePlugin extends Plugin {
 			await leaf?.setViewState({ type: VIEW, active: true });
 		}
 		if (leaf) await workspace.revealLeaf(leaf);
+	}
+
+	importTable() {
+		if (!this.pro) return void new Notice('Importing tables comes with Solo Oracle Pro.');
+		new ImportModal(this.app, this).open();
+	}
+
+	/** Writes an imported table as a note of its own in the library folder. The note's path. */
+	async addTable(name: string, md: string): Promise<string> {
+		const { vault } = this.app;
+		const folder = this.settings.folder.replace(/^\/+|\/+$/g, '');
+		if (folder && !vault.getAbstractFileByPath(folder)) await vault.createFolder(folder);
+		const path = freePath(folder, name, (p) => !!vault.getAbstractFileByPath(p));
+		await vault.create(path, md + '\n');
+		return path;
 	}
 
 	inLibrary(path: string): boolean {
@@ -404,8 +421,10 @@ class Library extends ItemView {
 			void this.plugin.saveSettings();
 			void this.refresh();
 		});
-		this.query = el.createEl('input', { type: 'text', cls: 'solo-oracle-search', placeholder: 'Search tables' });
+		const find = el.createDiv({ cls: 'solo-oracle-row' });
+		this.query = find.createEl('input', { type: 'text', cls: 'solo-oracle-search', placeholder: 'Search tables' });
 		this.query.setAttr('aria-label', 'Search tables');
+		find.createEl('button', { text: 'Import' }).onclick = () => this.plugin.importTable();
 		this.query.addEventListener('input', () => this.draw());
 		this.out = el.createDiv({ cls: 'solo-oracle-said' });
 		this.out.setAttr('aria-live', 'polite');
@@ -487,5 +506,59 @@ class Library extends ItemView {
 		const line = linkText(f);
 		await this.plugin.writeGame(game, (body) => (parseSolo(body).tables.includes(line) ? body : addEntry(body, 'table', line)));
 		this.say({ big: f.heading ?? f.note, small: `In ${game.basename}'s tables.` });
+	}
+}
+
+// Paste a table from a PDF or a spreadsheet, or pick a .csv or .txt file, and it becomes a note in the library folder.
+class ImportModal extends Modal {
+	constructor(app: App, private plugin: SoloOraclePlugin) {
+		super(app);
+	}
+
+	onOpen() {
+		this.setTitle('Import a table');
+		const el = this.contentEl;
+		el.addClass('solo-oracle', 'solo-oracle-import');
+		const name = el.createEl('input', { type: 'text', cls: 'solo-oracle-import-name', placeholder: 'Name, like Loot or Harbour weather' });
+		name.setAttr('aria-label', 'Table name');
+		const text = el.createEl('textarea', { cls: 'solo-oracle-import-text', placeholder: '1-2 Still and grey\n3-4 Fog off the water\n5-6 A storm coming in' });
+		text.setAttr('aria-label', 'Table text');
+		const file = el.createEl('input', { type: 'file' });
+		file.setAttr('accept', '.csv,.tsv,.txt,.md');
+		file.setAttr('aria-label', 'Or pick a file');
+		const asList = el.createEl('label', { cls: 'solo-oracle-import-list' });
+		const box = asList.createEl('input', { type: 'checkbox' });
+		asList.appendText(' Every line is one item');
+		const preview = el.createDiv({ cls: 'solo-oracle-small solo-oracle-import-preview' });
+		const go = el.createEl('button', { text: 'Add to the library', cls: 'mod-cta' });
+		const read = () => {
+			const t = importTable(text.value, box.checked);
+			preview.setText(t ? `Reads as a ${t.kind}, ${t.rows} ${t.rows === 1 ? 'row' : 'rows'}.` : 'Paste a table, or pick a file.');
+			go.disabled = !t;
+			return t;
+		};
+		text.addEventListener('input', read);
+		box.addEventListener('change', read);
+		file.addEventListener('change', () => {
+			const f = file.files?.[0];
+			if (!f) return;
+			if (!name.value.trim()) name.value = f.name.replace(/\.[^.]+$/, '');
+			void f.text().then((t) => {
+				text.value = t;
+				read();
+			});
+		});
+		go.onclick = async () => {
+			const t = read();
+			if (!t) return;
+			const path = await this.plugin.addTable(name.value, t.md);
+			new Notice(`Added ${path.split('/').pop()!.replace(/\.md$/, '')} to the table library.`);
+			this.close();
+		};
+		read();
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }

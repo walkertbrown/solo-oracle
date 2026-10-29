@@ -188,3 +188,18 @@
 	font-size: 0.85em;
 	margin-left: 6px;
 }
+.solo-oracle-import {
+	border: 0;
+	background: none;
+	padding: 0;
+}
+.solo-oracle-import textarea {
+	width: 100%;
+	min-height: 160px;
+	box-sizing: border-box;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+}
+.solo-oracle-import .mod-cta {
+	align-self: flex-end;
+}

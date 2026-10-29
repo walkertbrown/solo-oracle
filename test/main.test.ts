@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, describe, expect, it } from 'vitest';
-import { App, ctx, installDomHelpers } from './obsidian-shim';
+import { App, Modal, Notice, ctx, installDomHelpers } from './obsidian-shim';
 import SoloOraclePlugin, { append } from '../src/main';
 
 beforeAll(() => installDomHelpers());
@@ -249,5 +249,34 @@ describe('the table library', () => {
 		const { lib } = await library(false);
 		expect(lib.textContent).toContain('comes with Solo Oracle Pro');
 		expect(lib.querySelector('.solo-oracle-search')).toBeNull();
+	});
+});
+
+describe('importing a table', () => {
+	it('makes a note in the library folder from pasted lines', async () => {
+		const s = await setup(NOTE);
+		s.plugin.pro = true;
+		s.plugin.importTable();
+		const m = Modal.last!.contentEl;
+		const go = m.querySelector<HTMLButtonElement>('.mod-cta')!;
+		expect(go.disabled).toBe(true);
+		m.querySelector<HTMLInputElement>('.solo-oracle-import-name')!.value = 'Loot';
+		const text = m.querySelector<HTMLTextAreaElement>('textarea')!;
+		text.value = '2-6 Rust\n7-11 Coins\n12 A ring';
+		text.dispatchEvent(new Event('input'));
+		expect(m.querySelector('.solo-oracle-import-preview')!.textContent).toBe('Reads as a 2d6 table, 3 rows.');
+		go.click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(s.app.folders.has('Tables')).toBe(true);
+		expect(s.app.notes.get('Tables/Loot.md')!.content).toBe('| 2d6 | Result |\n| --- | --- |\n| 2-6 | Rust |\n| 7-11 | Coins |\n| 12 | A ring |\n');
+		expect(Notice.last).toBe('Added Loot to the table library.');
+	});
+
+	it('says it comes with Pro', async () => {
+		const s = await setup(NOTE);
+		Modal.last = null;
+		s.plugin.importTable();
+		expect(Modal.last).toBeNull();
+		expect(Notice.last).toBe('Importing tables comes with Solo Oracle Pro.');
 	});
 });

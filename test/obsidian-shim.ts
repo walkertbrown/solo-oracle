@@ -18,6 +18,7 @@ export function installDomHelpers() {
 	P.createSpan = function (this: HTMLElement, o?: Opts) { return make.call(this, 'span', o); };
 	P.createDiv = function (this: HTMLElement, o?: Opts) { return make.call(this, 'div', o); };
 	P.createEl = function (this: HTMLElement, tag: string, o?: Opts) { return make.call(this, tag, o); };
+	P.appendText = function (this: HTMLElement, t: string) { this.append(t); };
 	P.setText = function (this: HTMLElement, t: string) { this.textContent = t; };
 	P.empty = function (this: HTMLElement) { this.replaceChildren(); };
 	P.addClass = function (this: HTMLElement, ...c: string[]) { this.classList.add(...c); };
