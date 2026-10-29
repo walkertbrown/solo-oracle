@@ -117,6 +117,7 @@
 .solo-oracle-row input[type='text'] {
 	flex: 1;
 }
+.solo-oracle-more,
 .solo-oracle-end {
 	flex-wrap: wrap;
 }

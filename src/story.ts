@@ -5,9 +5,9 @@ export type Rolls = 'short' | 'out';
 
 const OPEN = /^((?:\s*>)*\s*)(`{3,}|~{3,})\s*solo\b/;
 const ANSWER = /^\s*- \*\*\?\*\* (.*) \*\((.+?)\)\* → \*\*(.+)\*\*\s*$/;
-const LABELED = /^\s*- \*\*(Twist|Words|Thread|Person):\*\* (.*\S)\s*$/;
+const LABELED = /^\s*- \*\*(Twist|Words|Thread|Person|Card):\*\* (.*\S)\s*$/;
 const TABLE = /^\s*- \*\*(.+?)\*\*(?: \*\((\d+)\)\*)?: (.*\S)\s*$/;
-const SCENE = /^\*(As expected\.|Not quite as expected: .*|Interrupted\. .*|Scene \d+ ends .*)\*\s*$/;
+const SCENE = /^\*(As expected\.|Not quite as expected: .*|Interrupted\. .*|Scene \d+ ends .*|The deck is shuffled\.)\*\s*$/;
 
 const stop = (t: string) => (/[.?!)]$/.test(t) ? t : t + '.');
 

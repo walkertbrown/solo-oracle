@@ -111,6 +111,23 @@ describe('the solo panel', () => {
 	});
 });
 
+describe('playing cards', () => {
+	it('draws into the block and the journal, then shuffles back', async () => {
+		const s = await setup(NOTE);
+		expect(s.button('Shuffle')).toBeUndefined();
+		s.plugin.rng = seq(0);
+		await s.click('Draw a card');
+		expect(s.content()).toContain('npc: Old Marra\ncards: A♠\n```');
+		expect(s.content()).toMatch(/- \*\*Card:\*\* A♠ \(Ace of Spades\), 51 left\n$/);
+		await s.click('Draw a card');
+		expect(s.content()).toContain('cards: A♠ 2♠\n');
+		expect(s.button('Draw a card').title).toBe('50 left in the deck');
+		await s.click('Shuffle');
+		expect(s.content()).not.toContain('cards:');
+		expect(s.content()).toMatch(/\*The deck is shuffled\.\*\n$/);
+	});
+});
+
 describe('appending to the note', () => {
 	it('keeps list lines together and spaces anything else', () => {
 		expect(append('Text', '- a')).toBe('Text\n\n- a\n');

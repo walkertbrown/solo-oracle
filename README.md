@@ -40,6 +40,10 @@ Then a ten-sided tension die is rolled. At or under the tension, the answer come
 
 **Twist** and **Two words** roll those on their own, for when you want a nudge without a question.
 
+## Playing cards
+
+For games that run on a deck of cards, press **Draw a card**. It draws from a standard 52-card deck and writes the card into the note, like `- **Card:** 7♥ (Seven of Hearts), 44 left`. The block keeps what you've drawn on a `cards:` line, so no card comes up twice until you press **Shuffle**, and the deck is still where you left it next time you open the note. When the last card is gone, the next draw shuffles first.
+
 ## Scenes
 
 Type the scene you expect and press **New scene**. A ten-sided die against the tension decides how it goes:

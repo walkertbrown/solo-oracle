@@ -24,6 +24,7 @@ import {
 	type Rng,
 	type Solo,
 } from './oracle';
+import { draw, drawn, cardName, journalCard, shuffle, withCard } from './cards';
 import { expand, hasInnerTable, journalTable, parseTableLink, rollOn, section, type TableLink, type TableRoll } from './tables';
 
 const TEMPLATE = '```solo\ntension 2\nthread: \nnpc: \n```\n';
@@ -313,7 +314,7 @@ export function append(note: string, text: string): string {
 class Panel extends MarkdownRenderChild {
 	solo: Solo;
 
-	constructor(private plugin: SoloOraclePlugin, el: HTMLElement, private ctx: MarkdownPostProcessorContext, src: string) {
+	constructor(private plugin: SoloOraclePlugin, el: HTMLElement, private ctx: MarkdownPostProcessorContext, private src: string) {
 		super(el);
 		this.solo = parseSolo(src);
 	}
@@ -388,6 +389,21 @@ class Panel extends MarkdownRenderChild {
 			this.say({ big: w });
 			void this.write(null, `- **Words:** ${w}`);
 		};
+		// a deck of playing cards; the block keeps what's been drawn
+		const gone = drawn(this.src).length;
+		const card = more.createEl('button', { text: 'Draw a card' });
+		card.setAttr('title', `${52 - gone} left in the deck`);
+		card.onclick = () => {
+			const d = draw(this.src, rng);
+			this.say({ big: d.card, small: `${cardName(d.card)}, ${d.left} left${d.shuffled ? ' after a shuffle' : ''}` });
+			void this.write((b) => withCard(b, d), journalCard(d));
+		};
+		if (gone) {
+			more.createEl('button', { text: 'Shuffle' }).onclick = () => {
+				this.say({ big: 'Shuffled', small: 'All 52 cards are back in the deck.' });
+				void this.write(shuffle, '*The deck is shuffled.*');
+			};
+		}
 
 		// scenes: what you expect, then the tension may change it; the end moves the tension
 		const scene = el.createDiv({ cls: 'solo-oracle-row' });
