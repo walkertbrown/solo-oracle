@@ -1,6 +1,6 @@
 # Solo Oracle
 
-Play tabletop games alone from a note. Ask the oracle yes or no at the odds you pick, frame the next scene and see if it goes as you expect, keep your threads and the people you meet, and get twists as the tension rises. Every answer writes itself into the note, so when you stop playing the note is the story.
+A solo TTRPG oracle and GM emulator: play tabletop RPGs alone from a note, with no GM. Ask the oracle yes or no at the odds you pick, frame the next scene and see if it goes as you expect, keep your threads and the NPCs you meet, roll on your own random tables or draw playing cards, and get twists as the tension rises. Every answer writes itself into the note, so when you stop playing the note is the story.
 
 ![Solo Oracle in a note, with the note's text beside it](docs/demo.png)
 
